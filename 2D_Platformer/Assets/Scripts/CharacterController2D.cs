@@ -1,12 +1,23 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Events;
-using UnityEngine.UIElements;
+using UnityEngine.Serialization;
 
 public class CharacterController2D : MonoBehaviour
 {
 	[SerializeField] private float moveSpeed = 10f;
-	[SerializeField] private float m_JumpForce = 400f;                          // Amount of force added when the player jumps.
+
+	[Header("Saut en hauteur (sur place)")]
+	[FormerlySerializedAs("m_JumpForce")]
+	[SerializeField] private float highJumpForce = 400f;                        // Force verticale du saut sur place
+
+	[Header("Saut en longueur (en mouvement)")]
+	[SerializeField] private float longJumpForce = 280f;                        // Force verticale du saut en longueur (plus bas)
+	[SerializeField] private float longJumpHorizontalSpeed = 14f;               // Vitesse horizontale pendant le saut en longueur
+	[Range(0f, 1f)] [SerializeField] private float movingThreshold = 0.2f;     // Input minimum pour etre considere "en mouvement"
+	[SerializeField] private float longJumpAirAcceleration = 40f;              // Reactivite du controle en l'air pendant le saut en longueur
+
+	[Header("Deplacement")]
 	[Range(0, .3f)] [SerializeField] private float m_MovementSmoothing = .05f;  // How much to smooth out the movement
 	[SerializeField] private bool m_AirControl = false;                         // Whether or not a player can steer while jumping;
 	[SerializeField] public StoreObjectsInTrigger groundCheck;
@@ -16,6 +27,8 @@ public class CharacterController2D : MonoBehaviour
 	private Rigidbody2D m_Rigidbody2D;
 	private bool m_FacingRight = true;  // For determining which way the player is currently facing.
 	private Vector3 m_Velocity = Vector3.zero;
+	private bool m_IsLongJumping;       // Vrai pendant un saut en longueur, jusqu'a l'atterrissage
+	private float m_JumpTime;           // Moment du dernier saut (evite de "re-atterrir" la frame du saut)
 
 	public CheckPoint checkpoint;
 
@@ -43,6 +56,10 @@ public class CharacterController2D : MonoBehaviour
 	private void FixedUpdate()
 	{
 		m_Grounded = groundCheck.objects.Count > 0;
+
+		// Fin du saut en longueur a l'atterrissage
+		if (m_IsLongJumping && m_Grounded && Time.time - m_JumpTime > 0.1f && m_Rigidbody2D.velocity.y <= 0.01f)
+			m_IsLongJumping = false;
 	}
 
 	public void Translate(Vector2 movement)
@@ -60,7 +77,19 @@ public class CharacterController2D : MonoBehaviour
 		
 		List<GameObject> ceiling = ceilingCheck.objects;
 		//only control the player if grounded or airControl is turned on
-		if (m_Grounded || m_AirControl)
+		if (m_IsLongJumping)
+		{
+			// Pendant un saut en longueur : on peut corriger la trajectoire en l'air
+			float targetX = move * longJumpHorizontalSpeed;
+			float newX = Mathf.MoveTowards(m_Rigidbody2D.velocity.x, targetX, longJumpAirAcceleration * Time.deltaTime);
+			m_Rigidbody2D.velocity = new Vector2(newX, m_Rigidbody2D.velocity.y);
+
+			if (move > 0 && !m_FacingRight)
+				Flip();
+			else if (move < 0 && m_FacingRight)
+				Flip();
+		}
+		else if (m_Grounded || m_AirControl)
 		{
 			// Move the character by finding the target velocity
 			Vector3 targetVelocity = new Vector2(move * moveSpeed, m_Rigidbody2D.velocity.y);
@@ -88,14 +117,30 @@ public class CharacterController2D : MonoBehaviour
 		// If the player should jump...
 		if (m_Grounded && jump && ceiling.Count <= 0)
 		{
-			// Add a vertical force to the player.
 			m_Grounded = false;
-			m_Rigidbody2D.AddForce(new Vector2(0f, m_JumpForce));
+			m_JumpTime = Time.time;
+
+			if (Mathf.Abs(move) > movingThreshold)
+			{
+				// En mouvement : saut en longueur (moins haut, mais loin)
+				m_IsLongJumping = true;
+				float direction = Mathf.Sign(move);
+				m_Rigidbody2D.velocity = new Vector2(direction * longJumpHorizontalSpeed, 0f);
+				m_Rigidbody2D.AddForce(new Vector2(0f, longJumpForce));
+			}
+			else
+			{
+				// Sur place : saut en hauteur
+				m_IsLongJumping = false;
+				m_Rigidbody2D.velocity = new Vector2(m_Rigidbody2D.velocity.x, 0f);
+				m_Rigidbody2D.AddForce(new Vector2(0f, highJumpForce));
+			}
 		}
 	}
 
 	public void RemoveControl()
     {
+		m_IsLongJumping = false;
 		m_Rigidbody2D.velocity = new Vector3(0, m_Rigidbody2D.velocity.y);
 		m_Rigidbody2D.constraints = RigidbodyConstraints2D.FreezePositionX;
 		m_Rigidbody2D.freezeRotation = true;
@@ -114,6 +159,7 @@ public class CharacterController2D : MonoBehaviour
         {
 			transform.position = checkpoint.transform.position;
 			m_Rigidbody2D.velocity = Vector3.zero;
+			m_IsLongJumping = false;
         }
     }
 
