@@ -88,6 +88,10 @@ PrefabInstance:
       value: 3000
       objectReference: {fileID: 0}
     - target: {fileID: 8739945466295884889, guid: 99841000a97a6c749ad48b146e04502a, type: 3}
+      propertyPath: highJumpForce
+      value: 3000
+      objectReference: {fileID: 0}
+    - target: {fileID: 8739945466295884889, guid: 99841000a97a6c749ad48b146e04502a, type: 3}
       propertyPath: m_WhatIsGround.m_Bits
       value: 704
       objectReference: {fileID: 0}
@@ -97,11 +101,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8739945466295884890, guid: 99841000a97a6c749ad48b146e04502a, type: 3}
       propertyPath: m_Color.b
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 8739945466295884890, guid: 99841000a97a6c749ad48b146e04502a, type: 3}
       propertyPath: m_Color.g
-      value: 0
+      value: 0.49900556
       objectReference: {fileID: 0}
     - target: {fileID: 8739945466295884890, guid: 99841000a97a6c749ad48b146e04502a, type: 3}
       propertyPath: m_Color.r
